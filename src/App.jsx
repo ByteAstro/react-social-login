@@ -1,58 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import './App.css'
 import axios from 'axios';
 
-// http://localhost:5173/oauth-callbak?code=c5879aab6a7cb10ff3c1
-
-const githubAuthorizeUrl = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUBLOGIN_CLIENTID}`
+const githubAuthorizeUrl = `https://github.com/login/oauth/authorize?client_id=${import.meta.env.VITE_GITHUB_CLIENT_ID}`;
 
 function App() {
-  const [accessToken, setAccessToken] = useState(null);
-  const [userDetails, setUserDetails] = useState();
+  const [userDetails, setUserDetails] = useState(null);
 
   useEffect(() => {
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     const githubLoginCode = urlParams.get('code');
-    console.log(githubLoginCode);
+    // console.log(githubLoginCode);
 
     // if (githubLoginCode && localStorage.getItem('user') === null) {
     if (githubLoginCode) {
       const getAccessToken = async () => {
-        await axios.get(
-          `${import.meta.env.VITE_BACKEND_ENDPOINT}/getAccessToken?githublogincode=${githubLoginCode}`
-        ).then((data) => {
-          console.log(data);
-          if (data.access_token) {
-            setAccessToken(data.access_token);
-            getUserDetails(data.access_token);
-          }
-        }).catch(err => {
-          console.log('Error fetching access token:', err);
-        })
+        try {
+          const response = await axios.get(
+            `${import.meta.env.VITE_BACKEND_ENDPOINT}/getAccessToken?githublogincode=${githubLoginCode}`
+          );
+          const { access_token } = response.data;
+          getUserDetails(access_token);
+        } catch (error) {
+          console.error('Error fetching access token:', error);
+        }
       }
+
+      const getUserDetails = async (access_token) => {
+        try {
+          const response = await axios.get(
+            `${import.meta.env.VITE_BACKEND_ENDPOINT}/getUserDetails`,
+            {
+              headers: {
+                Authorization: `Bearer ${access_token}`,
+              },
+            }
+          );
+          console.log(response.data);
+        } catch (error) {
+          console.error('Error fetching user details:', error);
+        }
+      };
+
       getAccessToken();
     }
   }, [])
-
-  useEffect(() => {
-    console.log('AccessToken updated:', accessToken);
-  }, [accessToken])
-
-  const getUserDetails = async (access_token) => {
-    console.log('getUserDetails called');
-    await axios({
-      method: 'GET',
-      url: `${import.meta.env.VITE_BACKEND_ENDPOINT}/getUserDetails`,
-      headers: {
-        Authorization: `Bearer ${access_token}`
-      }
-    }).then((data) => {
-      console.log(data);
-    }).catch(err => {
-      console.log(err);
-    });
-  }
 
   const handleGithubLogin = () => {
     window.location.assign(githubAuthorizeUrl);
